@@ -26,7 +26,7 @@
         "*://*.twitch.tv/*"
       ],
       "all_frames": true,
-      "run_at": "document_end"
+      "run_at": "document_start"
     }
   ],
   "background": {
@@ -37,7 +37,7 @@
     "*://*.betterttv.net/*",
     "*://*.7tv.io/*",
     "*://*.twitch.tv/*",
-    "*://*.ttvnw.net/*"
+    "*://badges.twitch.tv/*"
   ],
   "permissions": [
     "storage"
@@ -50,5 +50,5 @@
   },
   "manifest_version": 3,
   "name": "Twitch Anti-Ban",
-  "version": "4.3"
+  "version": "1.0.0"
 }

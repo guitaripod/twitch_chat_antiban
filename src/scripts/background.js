@@ -1,11 +1,20 @@
 const browserApi = typeof browser !== 'undefined' ? browser : chrome;
 
 browserApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    const sendCredentials = (() => {
+        try {
+            return new URL(request.url).hostname.endsWith('twitch.tv');
+        } catch {
+            return false;
+        }
+    })();
+
     if (request.type === 'fetchJson') {
         fetch(request.url, {
             method: request.method || 'GET',
             headers: request.headers || {},
-            body: request.body || null
+            body: request.body || null,
+            credentials: sendCredentials ? 'include' : 'omit'
         })
         .then(response => response.ok ? response.json() : null)
         .then(data => sendResponse(data))
@@ -20,7 +29,8 @@ browserApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
         fetch(request.url, {
             method: request.method || 'GET',
             headers: request.headers || {},
-            body: request.body || null
+            body: request.body || null,
+            credentials: sendCredentials ? 'include' : 'omit'
         })
         .then(response => response.ok ? response.text() : null)
         .then(data => sendResponse(data))
@@ -30,4 +40,4 @@ browserApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true;
     }
-}); 
+});

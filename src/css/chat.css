@@ -1,9 +1,13 @@
 .chat-list--default {
     overflow-y: scroll;
+    scrollbar-width: none;
     width: 100%;
     height: 100%;
-    padding-right: 17px;
     box-sizing: content-box;
+}
+
+.chat-list--default::-webkit-scrollbar {
+    display: none;
 }
 
 .inline-image {
@@ -34,3 +38,36 @@
     width: 100%;
     height: 100%;
 } 
+
+.anti-ban-input-container {
+    min-height: 30px;
+}
+
+.anti-ban-input-container:focus-within {
+    box-shadow: inset 0 0 0 2px #a970ff !important;
+}
+
+.anti-ban-input-box {
+    padding: 10px;
+    min-height: 20px;
+    max-height: 120px;
+    overflow-y: auto;
+    color: var(--color-text-base, #efeff1);
+    font-size: 14px;
+    line-height: 20px;
+    font-family: inherit;
+    outline: none;
+    word-break: break-word;
+    -webkit-user-modify: read-write-plaintext-only;
+}
+
+.anti-ban-input-box.anti-ban-empty::before {
+    content: 'Send a message';
+    color: var(--anti-ban-placeholder-color, var(--color-text-alt-2, #adadb8));
+    position: absolute;
+    pointer-events: none;
+}
+
+.anti-ban-input-box {
+    position: relative;
+}

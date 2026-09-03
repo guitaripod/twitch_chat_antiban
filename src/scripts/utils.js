@@ -20,49 +20,75 @@ async function fetchJson(url, method = "GET", headers = {}, body = null) {
 async function getTwitchUserId(username) {
     const userId = await getFromStorage(username.toString());
     if (userId) {
-        console.log('Twitch Anti-Ban: found channel ID in local storage:', userId);
         return userId;
     }
-    const data = await fetchJson(
-        `https://%APIURL%/getTwitchUserId?username=${username}`
-    );
-    if (data) {
-        await storeToStorage(username, data);
-        console.log('Twitch Anti-Ban: channel ID stored in local storage:', data);
+    const data = await fetchJson('https://gql.twitch.tv/gql', 'POST', {
+        'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+        'Content-Type': 'application/json'
+    }, JSON.stringify({query: `query { user(login: "${username}") { id } }`}));
+    const userIdFetched = data?.data?.user?.id ?? null;
+    if (userIdFetched) {
+        await storeToStorage(username, userIdFetched);
     }
-    return data;
+    return userIdFetched;
 }
 
 async function getTwitchBadges(userId) {
-    const cachedBadges = await getFromStorage(userId.toString());
+    const cacheKey = `badges-${userId}`;
+    const cachedBadges = await getFromStorage(cacheKey);
     if (cachedBadges) {
         const badges = JSON.parse(cachedBadges);
         if (new Date().getTime() - badges.timestamp < 24 * 60 * 60 * 1000) {
-            console.log(`Twitch Anti-Ban: found badges (${userId}) in local storage`);
             return badges.data;
         }
     }
-    const data = await fetchJson(
-        `https://%APIURL%/getTwitchBadges?user=${userId}`
-    );
-    if (data) {
-        await storeToStorage(userId, JSON.stringify({
-            data: data,
+    const query = userId === 'global'
+        ? 'query { badges { setID version imageURL(size: NORMAL) } }'
+        : `query { user(id: "${userId}") { broadcastBadges { setID version imageURL(size: NORMAL) } } }`;
+    const data = await fetchJson('https://gql.twitch.tv/gql', 'POST', {
+        'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+        'Content-Type': 'application/json'
+    }, JSON.stringify({query}));
+    const badges = (data?.data?.user?.broadcastBadges ?? data?.data?.badges) ?? null;
+    if (badges) {
+        await storeToStorage(cacheKey, JSON.stringify({
+            data: badges,
             timestamp: new Date().getTime(),
         }, null, 0));
-        console.log(`Twitch Anti-Ban: badges (${userId}) are stored in local storage`);
     }
-    return data;
+    return badges;
 }
 
 async function getTwitchStreamPlaylist(channel) {
+    const gqlPayload = [
+        {
+            'operationName': 'PlaybackAccessToken_Template',
+            'query': 'query PlaybackAccessToken_Template($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!) { streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isLive) { value signature __typename } }',
+            'variables': {
+                'isLive': true,
+                'login': channel,
+                'isVod': false,
+                'vodID': '',
+                'playerType': 'site'
+            }
+        }
+    ];
+    const data = await fetchJson('https://gql.twitch.tv/gql', 'POST', {
+        'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+        'Content-Type': 'application/json'
+    }, JSON.stringify(gqlPayload));
+    const token = data?.[0]?.data?.streamPlaybackAccessToken;
+    if (!token?.value || !token?.signature) {
+        return null;
+    }
     try {
-        return await browserApi.runtime.sendMessage({
-            type: 'fetchText',
-            url: `https://%APIURL%/getTwitchPlaylist?channel=${channel}`
-        });
+        const response = await fetch(`https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?player=twitchweb&token=${encodeURIComponent(token.value)}&sig=${encodeURIComponent(token.signature)}&allow_audio_only=true&allow_source=true&type=any&p=${Math.floor(Math.random() * 999999)}`);
+        if (!response.ok) {
+            return null;
+        }
+        return await response.text();
     } catch (error) {
-        console.log(`'Twitch Anti-Ban: unable to fetch playlist: ${error}`);
+        console.log(`Twitch Anti-Ban: unable to fetch playlist: ${error}`);
         return null;
     }
 }
